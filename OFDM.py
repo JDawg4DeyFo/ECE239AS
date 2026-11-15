@@ -1,4 +1,4 @@
-# File: project.py
+# File: OFDM.py
 # Author: Jacob Dennon
 # Date: November 12th, 2026
 # Description: This file will define all the helper functions required for the
@@ -6,7 +6,6 @@
 import numpy as np
 import math
 import random
-import matplotlib.pyplot as plt
 
 ################################################################################
 def gen_rand_qam_symbols(N, M):
@@ -65,6 +64,7 @@ def gen_rand_qam_symbols(N, M):
 		symbols.append(constellation[random.randint(0, M - 1)])
 
 	return np.array(symbols), constellation
+
 ################################################################################
 # OFDM Subcarriers
 # Return lists of indices
@@ -116,6 +116,7 @@ def get_subcarrier_indices(
 	idx_subs_data = list(indice_set)
 
 	return np.asarray(idx_subs_data), np.asarray(idx_subs_pilots), np.asarray(idx_subs_nulls)
+
 ################################################################################
 def get_OFDM_symbol(K, CP, M,
     *,
