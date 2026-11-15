@@ -108,7 +108,7 @@ def get_subcarrier_indices(
 	try:
 		idx_subs_pilots.pop(idx_subs_pilots.index(0)) # remove DC null if there
 		
-	except:
+	except AttributeError:
 		pass
 
 	indice_set -= set(idx_subs_nulls) # use this for data set
@@ -117,10 +117,14 @@ def get_subcarrier_indices(
 
 	return np.asarray(idx_subs_data), np.asarray(idx_subs_pilots), np.asarray(idx_subs_nulls)
 ################################################################################
-def get_OFDM_symbol(K, pilot_spacing, sps, CP, M,
+def get_OFDM_symbol(K, CP, M,
+    *,
+    pilot_spacing = 4,
+    sps = 1,
 	num_nulls_dc=1,
 	num_nulls_lower=1,
-	num_nulls_upper=1):
+	num_nulls_upper=1,
+	return_sequence = False):
 	"""
 		This function will return the complex baseband time domain of one OFDM 
 		symbol
@@ -147,6 +151,10 @@ def get_OFDM_symbol(K, pilot_spacing, sps, CP, M,
 
 		num_nulls_upper
 			Number of upper band nulls
+
+		return_sequence
+			Whether or not to return the serial symbol sequence
+			default = False
 		"""
 	# Get indices of subcarriers
 	pilot_spacing = 4 # maybe should make this a parameter
@@ -159,25 +167,35 @@ def get_OFDM_symbol(K, pilot_spacing, sps, CP, M,
 	)
 
 	# Generate symbols, pilots, and empty sequence
-	symbols = gen_rand_qam_symbols(len(idx_subs_data), M)
-	pilots = gen_rand_qam_symbols(len(idx_subs_pilots), M)
-	sequence = np.zeros(K, dtype='complex')
+	symbols,_ = gen_rand_qam_symbols(len(idx_subs_data), M)
+	pilots,_ = gen_rand_qam_symbols(len(idx_subs_pilots), M)
+	sequence = np.zeros(K * sps, dtype='complex')
 
 	# Populate the sequence
 	for idx, i in enumerate(idx_subs_data):
-		sequence[i] = symbols[idx]
+		sequence[i*sps:(i+1)*sps] = symbols[idx]
+
 	for idx, i in enumerate(idx_subs_pilots):
-		sequence[i] = pilots[idx]
+		sequence[i*sps:(i+1)*sps] = pilots[idx]
 
 	# Convert to OFDM
-	x_n = np.sqrt(K) * np.fft.ifft(sequence)
-	L = math.floor(K * CP)
+	x_n = (1/np.sqrt(K * sps)) * np.fft.ifft(sequence) #k * sps cuz sps more summations
+	L = math.floor(K * CP * sps)
 	cyclical_prefix = x_n[-L:]
 	x_n = np.concatenate((cyclical_prefix, x_n))
-	
+
+	# Conditional return
+	if return_sequence:
+		return x_n, sequence
 	return x_n
 
-def get_OFDM_frame(K, Nsym, sps, CP, M, B):
+def get_OFDM_frame(N, K, CP, M,
+	*,
+	sps = 1,
+	pilot_spacing = 4,
+	num_nulls_dc=1,
+	num_nulls_lower=1,
+	num_nulls_upper=1,):
 	"""
 	This function will return the complex baseband time domain of one general
 	OFDM frame
@@ -187,14 +205,32 @@ def get_OFDM_frame(K, Nsym, sps, CP, M, B):
 	K
 		Number of sub carriers
 	
-	Nsym
-		Number of symbols
-	
+	pilot_spacing
+		Number of sub carriers in between pilots
+
 	sps
 		Samples per symbol
 	
 	CP
 		Ratio of cyclic prefix length to ofdm symbol length
-	"""
 
-	return 2
+	num_nulls_dc
+		Number of DC nulls
+
+	num_nulls_lower
+		Number of lower band nulls
+
+	num_nulls_upper
+		Number of upper band nulls
+	"""
+	symbols = []
+
+	for i in range(N):
+		symbols.append(get_OFDM_symbol(K, CP, M, 
+		    sps=sps, 
+		    pilot_spacing=pilot_spacing, 
+			num_nulls_dc=num_nulls_dc,
+			num_nulls_lower=num_nulls_lower,
+			num_nulls_upper=num_nulls_upper))
+
+	return np.concatenate(symbols)
