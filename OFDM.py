@@ -69,6 +69,7 @@ def gen_rand_qam_symbols(N, M):
 # OFDM Subcarriers
 # Return lists of indices
 # Indices are in fft shifted form
+# this function might need some revising
 def get_subcarrier_indices(
 	num_subcarriers,
 	pilot_spacing,
@@ -180,7 +181,7 @@ def get_OFDM_symbol(K, CP, M,
 		sequence[i*sps:(i+1)*sps] = pilots[idx]
 
 	# Convert to OFDM
-	x_n = (1/np.sqrt(K * sps)) * np.fft.ifft(sequence) #k * sps cuz sps more summations
+	x_n = (1/np.sqrt(K * sps)) * np.fft.ifft(sequence) #k * sps cuz sps means more summations
 	L = math.floor(K * CP * sps)
 	cyclical_prefix = x_n[-L:]
 	x_n = np.concatenate((cyclical_prefix, x_n))
