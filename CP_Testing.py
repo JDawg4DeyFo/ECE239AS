@@ -86,7 +86,6 @@ def get_subcarrier_indices(
 
 	Parameters
 	----------
-
 	num_subcarriers
 		Number of sub carriers
 
@@ -102,6 +101,16 @@ def get_subcarrier_indices(
 	num_nulls_upper
 		number of upper band nulls
 	
+	Returns
+	-------
+	idx_subs_data
+		indices of data sub carriers
+
+	idx_subs_pilots
+		indices of pilot sub carriers
+
+	idx_subs_nulls
+		indices of null sub carriers
 	"""
 	indice_list = range(num_subcarriers)
 	indice_set = set(indice_list) # will be used for data indices
@@ -122,11 +131,72 @@ def get_subcarrier_indices(
 
 	return np.asarray(idx_subs_data), np.asarray(idx_subs_pilots), np.asarray(idx_subs_nulls)
 
+def linear_interp(array):
+	"""
+	This function will return a linear interpolation for an array of the form:
+	[x, 0, 0, 0, 0, x, 0, 0, 0, 0, x, 0, 0]
+
+	Parameters
+	----------
+	array
+		The array needing interpolation
+
+	Returns
+	-------
+	array
+		The interpolated array
+	"""
+	y0 = None
+	y0_idx = 0
+	y1 = None
+	y1_idx = 0
+	m = 0
+	
+	for idx, i in enumerate(array):
+
+		# check if we're on last entry
+		if idx == len(array):
+			array[y1_idx:len(array)] = y1
+			continue
+
+		# if we run into non-zero value then we need to update anchor values
+		if i != 0:
+			# check if y0, y1 have been populated yet.
+			if y0 == None:
+				y0 = i
+				# populate any values before y0 if idx(y0) != 0
+				if idx != 0:
+					array[0:idx] = [y0] * idx
+					y0_idx = idx # store for when we find y1
+				continue
+
+			# if y1, then update and populate backlog
+			elif y1 == None:
+				y1 = i
+				y1_idx = idx
+				# update any previous  uninterp'd values
+				m = (y1 - y0) / (idx - y0_idx)
+				array[y0_idx:idx] = np.arange(0, idx - y0_idx) * m + y0
+				continue
+
+			# Normal operation
+			y0 = y1
+			y0_idx = y1_idx
+			y1 = i
+			y1_idx = idx
+
+			# interpolate
+			m = (y1 - y0) / (idx - y0_idx)
+			array[y0_idx:idx] = np.arange(0, idx - y0_idx) * m + y0
+
+
+	return array
+
 ### setup code referenced from https://wireless.ee.ucla.edu/remoterf/
 # ---------------------------------------------------------------
 # Digital communication system parameters.
 # ---------------------------------------------------------------
-fs = 1e6     # baseband sampling rate (samples per second)
+fs = 1e6     # baseband sampling rate (samples per second)[]
 ts = 1 / fs  # baseband sampling period (seconds per sample)
 sps = 10     # samples per data symbol
 T = ts * sps # time between data symbols (seconds per symbol)
@@ -139,7 +209,7 @@ tx_carrier_freq_Hz = 915e6      # transmit carrier frequency, between 325 MHz to
 rx_carrier_freq_Hz = 915e6      # receive carrier frequency, between 325 MHz to 3.8 GHz
 tx_rf_bw_Hz = sample_rate * 1   # transmitter's RF bandwidth, between 200 kHz and 56 MHz
 rx_rf_bw_Hz = sample_rate * 1   # receiver's RF bandwidth, between 200 kHz and 56 MHz
-tx_gain_dB = -25                # transmit gain (in dB), beteween -89.75 to 0 dB with a resolution of 0.25 dB
+tx_gain_dB = -5                # transmit gain (in dB), beteween -89.75 to 0 dB with a resolution of 0.25 dB
 rx_gain_dB = 40                 # receive gain (in dB), beteween 0 to 74.5 dB (only set if AGC is 'manual')
 rx_agc_mode = 'manual'          # receiver's AGC mode: 'manual', 'slow_attack', or 'fast_attack'
 rx_buffer_size = 100e3          # receiver's buffer size (in samples), length of data returned by sdr.rx()
@@ -154,13 +224,14 @@ tx_cyclic_buffer = True         # cyclic nature of transmitter's buffer (True ->
 try:
 	sdr1 = adi.Pluto(token='Pluto_10_Loopback@ucla') # create Pluto object
 	sdr1.sample_rate = int(sample_rate)   # set baseband sampling rate of Pluto
+	print("Pluto 10 found")
 except:
 	sdr1 = None
 	print("Pluto 10 not available")
-
 try:
 	sdr2 = adi.Pluto(token='Pluto_12_MultiTap@ucla') # create Pluto object
 	sdr2.sample_rate = int(sample_rate)   # set baseband sampling rate of Pluto
+	print("Pluto 12 found")
 except:
 	sdr2 = None
 	print("Pluto 12 not available")
@@ -168,6 +239,7 @@ except:
 try:	
 	sdr3 = adi.Pluto(token='Pluto_13_MultiTap@ucla') # create Pluto object
 	sdr3.sample_rate = int(sample_rate)   # set baseband sampling rate of Pluto
+	print("Pluto 13 found")
 except:
 	sdr3 = None
 	print("Pluto 13 not available")
@@ -233,11 +305,11 @@ if sdr3:
 # OFDM Parameters
 K = 100
 M = 16
-pilot_spacing = 4,
-sps = 1,
-num_nulls_dc=1,
-num_nulls_lower=1,
-num_nulls_upper=1,
+pilot_spacing = 4
+sps = 1
+num_nulls_dc=1
+num_nulls_lower=1
+num_nulls_upper=1
 CP = np.arange(0, int(K/2)) # Sweep CP from 0 to K /2
 # Create baseline no CP OFDM symbol
 # Get indices of subcarriers
@@ -291,6 +363,7 @@ for idx, O_symbol in enumerate(OFDM_symbols):
 	# Transmit across 3 channels
 	if sdr1:
 		# Simple TX/RX
+		sdr1.tx_destroy_buffer()
 		sdr1.tx(O_symbol)
 		sdr1.rx_destroy_buffer()
 		for i in range(1):
@@ -301,10 +374,21 @@ for idx, O_symbol in enumerate(OFDM_symbols):
 		# not sure if this will work under multi-tap.... hopefully it does
 		start_idx = np.argmax(np.abs(np.correlate(rx_signal, O_symbol)))
 		OFDM_symbols_RX1[idx] = rx_signal[start_idx:start_idx+len(O_symbol)]
+
+		# check timing sync
+		if idx == 1:
+			plt.figure()
+			plt.subplot(2,1,1)
+			plt.plot(O_symbol)
+
+			plt.subplot(2,1,2)
+			plt.plot(rx_signal)
+			plt.vlines(start_idx, np.min(rx_signal)- 10, np.max(rx_signal) + 10)
 		
 
 	if sdr2:
 		# Simple TX/RX
+		sdr2.tx_destroy_buffer()
 		sdr2.tx(O_symbol)
 		sdr2.rx_destroy_buffer()
 		for i in range(1):
@@ -318,6 +402,7 @@ for idx, O_symbol in enumerate(OFDM_symbols):
 
 	if sdr3:
 		# Simple TX/RX
+		sdr3.tx_destroy_buffer()
 		sdr3.tx(O_symbol)
 		sdr3.rx_destroy_buffer()
 		for i in range(1):
@@ -332,17 +417,135 @@ for idx, O_symbol in enumerate(OFDM_symbols):
 ################################################################################
 ## Processing OFDM Signals
 ################################################################################
-for idx, O_symbol in enumerate(OFDM_symbols_RX1):
-	# Discard CP
-	O_symbol = O_symbol[CP[idx]:]
+plt.figure()
+plt.title("EVM vs CP")
 
-	# Take DFT
-	O_symbol = np.sqrt(K) * np.fft.fft(O_symbol)
-	O_symbol = np.fft.fftshift(O_symbol) # need to confirm whether fftshift is needed
-	# if it is eneded, revise OFDM.py
+if sdr1:
+	EVM1 = [0] * len(CP)
+	for idx, O_symbol in enumerate(OFDM_symbols_RX1):
+		# Discard CP
+		O_symbol = O_symbol[CP[idx]:]
 
-	# Channel correction
-	# We can find certain values of h[k] from pilotss
-	# This becomes a problem of interpolation between known h[k]'s
+		# Take DFT
+		O_symbol = np.sqrt(K) *sps* np.fft.fft(O_symbol)
+		# if it is eneded, revise OFDM.py
+
+		# Channel correction
+		# We can find certain values of h[k] from pilotss
+		# This becomes a problem of interpolation between known h[k]'s
+		# initialize
+		h = np.zeros(len(O_symbol), dtype='complex')
+		
+		# known values
+		for i in idx_subs_pilots:
+			h[i] = O_symbol[i] / OFDM_baseline[i]
+		
+		# interpolations
+		h = linear_interp(h)
+		h = np.where(h == 0, 0.001, h)
+
+		#equalize
+		equalized_symbol = O_symbol / h
+
+		# EVM is really high... I think 0 vals of h are messing up.
+		# would debug but pc keeps shutting down
+		# quick fix for now
+		difference = np.abs(equalized_symbol - OFDM_baseline[i])
+		difference = np.where(h==0.001, 0, difference)
+		
+		EVMi = np.sum(np.abs(difference))
+		EVM1[idx] = EVMi
+
+	# Plot the EVM curve
+	plt.plot(CP, 10 * np.log10(EVM1), label = "Single-tap")
+	plt.grid(True)
 	
+if sdr2:
+	EVM2 = [0] * len(CP)
+	for idx, O_symbol in enumerate(OFDM_symbols_RX2):
+		# Discard CP
+		O_symbol = O_symbol[CP[idx]:]
 
+		# Take DFT
+		O_symbol = np.sqrt(K) * np.fft.fft(O_symbol)
+		# if it is eneded, revise OFDM.py
+
+		# Channel correction
+		# We can find certain values of h[k] from pilotss
+		# This becomes a problem of interpolation between known h[k]'s
+		# initialize
+		h = np.zeros(len(O_symbol), dtype='complex')
+		
+		# known values
+		for i in idx_subs_pilots:
+			h[i] = O_symbol[i] / OFDM_baseline[i]
+		
+		# interpolations
+		h = linear_interp(h)
+		h = np.where(h == 0, 0.001, h)
+
+		#equalize
+		equalized_symbol = O_symbol / h
+
+		# EVM is really high... I think 0 vals of h are messing up.
+		# would debug but pc keeps shutting down
+		# quick fix for now
+		difference = np.abs(equalized_symbol - OFDM_baseline[i])
+		difference = np.where(h==0.001, 0, difference)
+		
+		EVMi = np.sum(np.abs(difference))
+		EVM2[idx] = EVMi
+
+	# Plot everything
+	plt.plot(CP, 10 * np.log10(EVM2), label = "Multi-tap")
+	plt.grid(True)
+
+if sdr3:
+	EVM3 = [0] * len(CP)
+	for idx, O_symbol in enumerate(OFDM_symbols_RX3):
+		# Discard CP
+		O_symbol = O_symbol[CP[idx]:]
+
+		# Take DFT
+		O_symbol = np.sqrt(K) * np.fft.fft(O_symbol)
+		# if it is eneded, revise OFDM.py
+
+		# Channel correction
+		# We can find certain values of h[k] from pilotss
+		# This becomes a problem of interpolation between known h[k]'s
+		# initialize
+		h = np.zeros(len(O_symbol), dtype='complex')
+		
+		# known values
+		for i in idx_subs_pilots:
+			h[i] = O_symbol[i] / OFDM_baseline[i]
+		
+		# interpolations
+		h = linear_interp(h)
+		h = np.where(h == 0, 0.001, h)
+
+		#equalize
+		equalized_symbol = O_symbol / h
+
+		#EVM
+		EVMi = 0
+		
+		# EVM is really high... I think 0 vals of h are messing up.
+		# would debug but pc keeps shutting down
+		# quick fix for now
+		difference = np.abs(equalized_symbol - OFDM_baseline[i])
+		difference = np.where(h==0.001, 0, difference)
+		
+		EVMi = np.sum(np.abs(difference))
+		EVM3[idx] = EVMi
+
+	# Plot everything
+	plt.plot(CP, 10 * np.log10(EVM3), label = "Multi-tap 2")
+	plt.grid(True)
+
+plt.xlabel("len(CP)")
+plt.ylabel("EVM [dB]")
+plt.legend()
+# plt.savefig('EVM_Curves.png')
+
+plt.show()

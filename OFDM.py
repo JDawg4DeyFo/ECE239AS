@@ -82,7 +82,6 @@ def get_subcarrier_indices(
 
 	Parameters
 	----------
-
 	num_subcarriers
 		Number of sub carriers
 
@@ -98,6 +97,16 @@ def get_subcarrier_indices(
 	num_nulls_upper
 		number of upper band nulls
 	
+	Returns
+	-------
+	idx_subs_data
+		indices of data sub carriers
+
+	idx_subs_pilots
+		indices of pilot sub carriers
+
+	idx_subs_nulls
+		indices of null sub carriers
 	"""
 	indice_list = range(num_subcarriers)
 	indice_set = set(indice_list) # will be used for data indices
@@ -204,6 +213,9 @@ def get_OFDM_frame(N, K, CP, M,
 
 	Parameters
 	----------
+	N
+		Number of symbols
+		
 	K
 		Number of sub carriers
 	
