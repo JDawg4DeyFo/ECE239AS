@@ -115,31 +115,107 @@ plt.legend()
 ################################################################################
 ## Part b: SNR1 = 20 dB SNR2 = 0 dB uplink
 ################################################################################
-# SNR1 = 100
-# SNR2 = 1
+SNR1 = 100
+SNR2 = 1
 
-# # find caps
-# C1 = a * np.log2(1 + SNR1/ a)
-# C2 = (1 - a) * np.log2(1 + SNR2/(1 - a))
+# plt main
+plt.figure()
+plt.title(f"Uplink SE Regions: SNR1 = {SNR1} SNR2 = {SNR2}")
+plt.xlabel("C1 SNR = 10 dB")
+plt.ylabel("C2 SNR = 10 dB")
+plt.grid(True)
 
-# # plt main
-# plt.figure()
-# plt.title("Spectral Efficiency Region")
-# plt.plot(C1, C2)
-# plt.xlabel("C1 SNR = 10 dB")
-# plt.ylabel("C2 SNR = 10 dB")
-# plt.grid(True)
+############ TDMA
+C1 = a * np.log2(1 + SNR1)
+C2 = (1- a) * np.log2(1 + SNR2)
 
-# # plot max pt
-# max_idx = np.argmax(C1 + C2)
-# plt.scatter(C1[max_idx], C2[max_idx], marker='*')
+# plt main
+plt.plot(C1, C2, label="TDMA")
+
+# plot max pt
+max_idx = np.argmax(C1 + C2)
+plt.scatter(C1[max_idx], C2[max_idx], marker='*')
+
+############ FDMA
+C1 = a * np.log2(1 + SNR1/ a)
+C2 = (1 - a) * np.log2(1 + SNR2/(1 - a))
+
+# plt main
+plt.plot(C1, C2, label="FDMA")
+plt.xlabel("C1 (bps/Hz)")
+plt.ylabel("C2 (bps/Hz)")
+
+# plot max pt
+max_idx = np.argmax(C1 + C2)
+plt.scatter(C1[max_idx], C2[max_idx], marker='*')
+
+############ NOMA-SIC
+C1_degrade = np.log2(1 + SNR1/(1 + SNR2))
+C1_full = np.log2(1+ SNR1)
+
+C2_degrade = np.log2(1 + SNR2 / (SNR1 + 1))
+C2_full = np.log2(1 + SNR2)
+
+C1 = np.concatenate((np.linspace(0.01, C1_degrade, 25) , [0] * 25 , [C1_full] * 25))
+C2 = np.concatenate(([C2_full] * 25 , [0] * 25 , np.linspace(C2_degrade, 0.01, 25)))
+C1 = linear_interp(C1)
+C2 = linear_interp(C2)
+
+plt.plot(C1, C2, label = "NOMA-SIC")
+plt.legend()
 ################################################################################
 ## Part c: SNR1 = 10 dB SNR2 = 10 dB downlink
 ################################################################################
 SNR1 = 10
 SNR2 = 10
 
+plt.figure()
+plt.title(f"Uplink SE Regions: SNR1 = {SNR1} SNR2 = {SNR2}")
+plt.xlabel("C1 SNR = 10 dB")
+plt.ylabel("C2 SNR = 10 dB")
+plt.grid(True)
 
+############ TDMA
+C1 = a * np.log2(1 + SNR1)
+C2 = (1- a) * np.log2(1 + SNR2)
+
+# plt main
+plt.plot(C1, C2, label="TDMA")
+
+# plot max pt
+max_idx = np.argmax(C1 + C2)
+plt.scatter(C1[max_idx], C2[max_idx], marker='*')
+
+############ FDMA
+C1 = a * np.log2(1 + SNR1)
+C2 = (1 - a) * np.log2(1 + SNR2)
+
+# plt main
+plt.plot(C1, C2, label="FDMA")
+plt.xlabel("C1 (bps/Hz)")
+plt.ylabel("C2 (bps/Hz)")
+
+# plot max pt
+max_idx = np.argmax(C1 + C2)
+plt.scatter(C1[max_idx], C2[max_idx], marker='*')
+
+############ NOMA-SIC
+P1 = np.linspace(0.01,0.99, 100)
+P2 = 1-P1
+C1_degrade = np.log2(1 + (P1 * SNR1)/(1 + P2 * SNR1))
+C1_full = np.log2(1+ P1 * SNR1)
+
+C2_degrade = np.log2(1 + (P2 * SNR2) / (P1 * SNR1 + 1))
+C2_full = np.log2(1 + P2 * SNR2)
+
+# C1 = np.concatenate((np.linspace(0.01, C1_degrade, 25) , [0] * 25 , [C1_full] * 25))
+# C2 = np.concatenate(([C2_full] * 25 , [0] * 25 , np.linspace(C2_degrade, 0.01, 25)))
+# C1 = linear_interp(C1)
+# C2 = linear_interp(C2)
+
+plt.plot(C1_full, C2_degrade, label = "NOMA-SIC")
+
+plt.legend()
 
 ################################################################################
 ## Part d: SNR1 = 20 dB SNR2 = 0 dB downlink
@@ -147,7 +223,54 @@ SNR2 = 10
 SNR1 = 100
 SNR2 = 1
 
+plt.figure()
+plt.title(f"Uplink SE Regions: SNR1 = {SNR1} SNR2 = {SNR2}")
+plt.xlabel("C1 SNR = 10 dB")
+plt.ylabel("C2 SNR = 10 dB")
+plt.grid(True)
 
+############ TDMA
+C1 = a * np.log2(1 + SNR1)
+C2 = (1- a) * np.log2(1 + SNR2)
+
+# plt main
+plt.plot(C1, C2, label="TDMA")
+
+# plot max pt
+max_idx = np.argmax(C1 + C2)
+plt.scatter(C1[max_idx], C2[max_idx], marker='*')
+
+############ FDMA
+C1 = a * np.log2(1 + SNR1)
+C2 = (1 - a) * np.log2(1 + SNR2)
+
+# plt main
+plt.plot(C1, C2, label="FDMA")
+plt.xlabel("C1 (bps/Hz)")
+plt.ylabel("C2 (bps/Hz)")
+
+# plot max pt
+max_idx = np.argmax(C1 + C2)
+plt.scatter(C1[max_idx], C2[max_idx], marker='*')
+
+############ NOMA-SIC
+P1 = np.linspace(0.0001,0.9999, 200)
+# P2 = 1-P1
+# C1_degrade = np.log2(1 + (P1 * SNR1)/(1 + P2 * SNR1))
+C1_full = np.log2(1+ P1 * SNR1)
+
+P2 = 1 - (2**C1_full - 1)/ SNR1
+C2_degrade = np.log2(1 + (P2 * SNR2) / (P1 * SNR1 + 1))
+C2_full = np.log2(1 + P2 * SNR2)
+
+# C1 = np.concatenate((np.linspace(0.01, C1_degrade, 25) , [0] * 25 , [C1_full] * 25))
+# C2 = np.concatenate(([C2_full] * 25 , [0] * 25 , np.linspace(C2_degrade, 0.01, 25)))
+# C1 = linear_interp(C1)
+# C2 = linear_interp(C2)
+
+plt.plot(C1_full, C2_degrade, label = "NOMA-SIC")
+
+plt.legend()
 
 
 
