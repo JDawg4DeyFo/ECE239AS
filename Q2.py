@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# all angle arguments in rads
+
 def get_ula_response(N, az):
 
 	i = np.arange(N)
@@ -22,12 +24,13 @@ def get_upa_response(M, N, az, el):
 def get_ula_gain(N, w, az):
 	g = np.zeros(len(az), dtype='complex')
 	for idx, az_i in enumerate(az):
-		g[idx] = np.sum(np.conj(w) * get_ula_response(N, az))
+		g[idx] = np.sum(np.conj(w) * get_ula_response(N, az_i))
 
 	return g
 
 def get_upa_gain(M, N, w, az, el):
-	g = np.zeros((len(az), len(el)))
+	g = np.zeros((len(az), len(el)), dtype='complex')
+	# AZ, EL = np.meshgrid(az, el)
 
 	for idx, az_i in enumerate(az):
 		for jdx, el_i in enumerate(el):
